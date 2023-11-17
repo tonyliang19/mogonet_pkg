@@ -1,0 +1,33 @@
+[build-system]
+# Minimum requirement for the build system to execute
+requires = [
+	"setuptools>=61.0"
+]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "Mogonet"
+description = "Package for MOGONET method @nature communications"
+version = "1.0.0"
+authors = [
+  { name="Tony Liang", email="tony.liang@hli.ubc.ca" },
+]
+
+keywords = [
+	"multi-omics",
+	"deep learning"
+]
+
+readme = "README.md"
+requires-python = ">3.8"
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"License :: OSI Approved :: MIT License",
+	"Operating System :: OS Independent",
+
+]
+
+
+[project.urls]
+"Homepage" = "https://github.com/tonyliang19/multi-omics-pipeline/"
