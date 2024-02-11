@@ -1,10 +1,32 @@
 import os
+import glob
 import numpy as np
 import torch
 import torch.nn.functional as F
 
 cuda = True if torch.cuda.is_available() else False
 
+def check_adj_param_size(adj_parameter, data_tr_list):
+    # adj param is a tuneable hyperparameter, but it has to be < number of sample in train data block
+    sample_sizes = [block.shape[0] for block in data_tr_list]
+    common_size = all(x==sample_size[0] for x in sample_sizes)
+    if not common_size:
+        raise Exception('Samples have no common size, check')
+    return adj_parameter
+
+def getViewList(data_folder):
+    exclude = "labels"
+    pattern = "_tr"
+    # First list all files of data folder
+    files = glob.glob(os.path.join(data_folder, f"*{pattern}*"))
+    vlist = []
+    for file in files:
+        if exclude not in file:
+            base = os.path.splitext(os.path.basename(file))[0]
+            name = base.replace(pattern, "")
+            vlist.append(name)
+    view_list = sorted(vlist)
+    return view_list
 
 def cal_sample_weight(labels, num_class, use_sample_weight=True):
     if not use_sample_weight:
@@ -147,20 +169,31 @@ def gen_test_adj_mat_tensor(data, trte_idx, parameter, metric="cosine"):
     return adj
 
 
-def save_model_dict(folder, model_dict):
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    for module in model_dict:
-        torch.save(model_dict[module].state_dict(), os.path.join(folder, module+".pth"))
-            
-    
-def load_model_dict(folder, model_dict):
-    for module in model_dict:
-        if os.path.exists(os.path.join(folder, module+".pth")):
-#            print("Module {:} loaded!".format(module))
-            model_dict[module].load_state_dict(torch.load(os.path.join(folder, module+".pth"), map_location="cuda:{:}".format(torch.cuda.current_device())))
-        else:
-            print("WARNING: Module {:} from model_dict is not loaded!".format(module))
-        if cuda:
-            model_dict[module].cuda()    
+def save_model_dict(model_dict, output_name):
+    # if not os.path.exists(folder):
+    #     os.makedirs(folder)
+    # Use a different way to just dump everything into local path
+        #for module in model_dict:
+    #    torch.save(model_dict[module].state_dict(), os.path.join(folder, module+".pth"))
+    path = f"{output_name}.pt"
+    print(f"Saving model to {path}")
+    torch.save(model_dict, path)
+    return None
+
+def load_model_dict(path):
+    print(f"Loading model from {path}")
+    model_dict = torch.load(path)
+    for m in model_dict.values():
+        m.eval()
     return model_dict
+    
+# def load_model_dict(folder, model_dict):
+#     for module in model_dict:
+#         if os.path.exists(os.path.join(folder, module+".pth")):
+# #            print("Module {:} loaded!".format(module))
+#             model_dict[module].load_state_dict(torch.load(os.path.join(folder, module+".pth"), map_location="cuda:{:}".format(torch.cuda.current_device())))
+#         else:
+#             print("WARNING: Module {:} from model_dict is not loaded!".format(module))
+#         if cuda:
+#             model_dict[module].cuda()    
+#     return model_dict

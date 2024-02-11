@@ -6,13 +6,13 @@ from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 import torch
 import torch.nn.functional as F
 from mogonet.models import init_model_dict, init_optim
-from mogonet.utils import one_hot_tensor, cal_sample_weight, gen_adj_mat_tensor, gen_test_adj_mat_tensor, cal_adj_mat_parameter
+from mogonet.utils import one_hot_tensor, cal_sample_weight, gen_adj_mat_tensor, gen_test_adj_mat_tensor, cal_adj_mat_parameter, getViewList, check_adj_para
 
 
 cuda = True if torch.cuda.is_available() else False
 
 # Helper function to prepare the data
-def prepare_trte_data(data_folder, view_list):
+def prepare_trte_data(data_folder, view_list=None):
     """
     Gets all the *tr.csv and *te.csv in the data_folder, and transforms these to list of tensors, then
     storing it on several returned objects
@@ -36,7 +36,9 @@ def prepare_trte_data(data_folder, view_list):
         labels: np.ndarray
             numpy array that stores the actual class of each observation
     """
-
+    if view_list is None:
+        print("Did not provide custom view list, finding it now")
+        view_list = getViewList(data_folder)
     num_view = len(view_list)
     # Get the labels and transform it to integer to map it
     labels_tr = np.loadtxt(os.path.join(data_folder, "labels_tr.csv"), delimiter=',').astype(int)
@@ -132,11 +134,16 @@ def test_epoch(data_list, adj_list, te_idx, model_dict):
 
     return prob
 
+# decoupled to two functions
+
+def train_model():
+
 # This is the main function
 def train_test(
-    data_folder, view_list, num_class,
+    data_folder,
     lr_e_pretrain, lr_e, lr_c,
-    num_epoch_pretrain, num_epoch, test_interval=50, adj_parameter=8
+    num_epoch_pretrain, num_epoch, view_list=None, 
+    num_class=2,test_interval=50, adj_parameter=8
                 ):
     """
     Parameters:
@@ -150,17 +157,23 @@ def train_test(
     lr_c:                   Learning rate ....
     num_epoch_pretrain:     Number of epochs to supply for pretrain
     test_interval:          Interval to test epoch, recommend 50 for demo, 200 for cluster
-    adj_parameter:          Parameter for adjacency matrix, fix later
+    adj_parameter:          Hyperparameter for adjacency matrix, tuneable, FIX LATER
     """
-    num_view = len(view_list)
-    dim_hvcdn = pow(num_class,num_view)
+    # Check if view_list provided or not 
+    if view_list is None:
+        print("Did not provide custom view list, finding it now")
+        view_list = getViewList(data_folder)
+    # Check if cuda used or not
     if cuda:
         print("Found cuda, using GPU")
     else:
         print("Cuda not found, using CPU")
+    
+    # Parameters 
+    num_view = len(view_list)
+    dim_hvcdn = pow(num_class,num_view)
     # ----------------------------------
     # Modify LATER!!!!!!!
-    #adj_parameter = 8
     dim_he_list = [50] * num_view # Need a more robust way to decide this
     # But it should be of length N (numbers of blocks), so might need to column number
     # in each block minus some constant, such this number < column numebr of specific block
@@ -174,8 +187,16 @@ def train_test(
         labels_tr_tensor = labels_tr_tensor.cuda()
         onehot_labels_tr_tensor = onehot_labels_tr_tensor.cuda()
         sample_weight_tr = sample_weight_tr.cuda()
+    # TODO: FIX THIS AND MAKE IT MORE VERBOSE
+    # adj_parameter needs to be <= numples of rows in train data
+    adj_parameter = check_adj_param_size(adj_parameter, data_tr_list)
     adj_tr_list, adj_te_list = gen_trte_adj_mat(data_tr_list, data_trte_list, trte_idx, adj_parameter)
+
+    # Feature dimension of each block in train data list
     dim_list = [x.shape[1] for x in data_tr_list]
+    # Initialize a model dictionary to update later
+    # Dim_he_list could be tuneable like [some_tune_num] * num_view or different numbers of each view
+    # like [k1, k2, k3, ... ] or just [k, k, k, ...], to list of length is equal to num_view
     model_dict = init_model_dict(num_view, num_class, dim_list, dim_he_list, dim_hvcdn)
     for m in model_dict:
         if cuda:
@@ -184,11 +205,15 @@ def train_test(
     print("\nPretrain GCNs...")
     optim_dict = init_optim(num_view, model_dict, lr_e_pretrain, lr_c)
     for epoch in range(num_epoch_pretrain):
+        # Notice the model_dict is being changed under the hood
+        # for every model_dict[m].state_dict()
         train_epoch(data_tr_list, adj_tr_list, labels_tr_tensor,
                     onehot_labels_tr_tensor, sample_weight_tr, model_dict, optim_dict, train_VCDN=False)
     print("\nTraining...")
     optim_dict = init_optim(num_view, model_dict, lr_e, lr_c)
     for epoch in range(num_epoch+1):
+        # Notice the model_dict is being changed under the hood
+        # for every model_dict[m].state_dict()
         train_epoch(data_tr_list, adj_tr_list, labels_tr_tensor,
                     onehot_labels_tr_tensor, sample_weight_tr, model_dict, optim_dict)
         if epoch % test_interval == 0:
