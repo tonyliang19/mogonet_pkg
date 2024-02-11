@@ -38,7 +38,7 @@ def train_epoch(data_list, adj_list, label, one_hot_label, sample_weight, model_
 
 # This is the main function to train
 def train_mogonet(
-    data_folder, output_name
+    data_folder, output_name,
     lr_e_pretrain, lr_e, lr_c,
     num_epoch_pretrain, num_epoch, view_list=None, 
     num_class=2, adj_parameter=5
