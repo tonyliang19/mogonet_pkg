@@ -14,7 +14,7 @@ def check_adj_param_size(adj_parameter, data_tr_list):
         raise Exception('Samples have no common size, check')
     return adj_parameter
 
-def getViewList(data_folder):
+def get_view_list(data_folder):
     exclude = "labels"
     pattern = "_tr"
     # First list all files of data folder
