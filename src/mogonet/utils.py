@@ -9,7 +9,7 @@ cuda = True if torch.cuda.is_available() else False
 def check_adj_param_size(adj_parameter, data_tr_list):
     # adj param is a tuneable hyperparameter, but it has to be < number of sample in train data block
     sample_sizes = [block.shape[0] for block in data_tr_list]
-    common_size = all(x==sample_size[0] for x in sample_sizes)
+    common_size = all(x==sample_sizes[0] for x in sample_sizes)
     if not common_size:
         raise Exception('Samples have no common size, check')
     return adj_parameter
@@ -175,7 +175,9 @@ def save_model_dict(model_dict, output_name):
     # Use a different way to just dump everything into local path
         #for module in model_dict:
     #    torch.save(model_dict[module].state_dict(), os.path.join(folder, module+".pth"))
-    path = f"{output_name}.pt"
+    # Check if contain the ext or not
+    ext = ".pt"
+    path = output_name if ext in output_name else f"{output_name}.pt"
     print(f"Saving model to {path}")
     torch.save(model_dict, path)
     return None

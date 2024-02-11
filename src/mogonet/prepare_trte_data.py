@@ -26,6 +26,7 @@ def prepare_trte_data(data_folder, view_list=None):
         labels: np.ndarray
             numpy array that stores the actual class of each observation
     """
+    cuda = True if torch.cuda.is_available() else False
     num_view = len(view_list)
     # Get the labels and transform it to integer to map it
     labels_tr = np.loadtxt(os.path.join(data_folder, "labels_tr.csv"), delimiter=',').astype(int)
