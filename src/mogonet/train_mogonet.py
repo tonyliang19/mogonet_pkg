@@ -1,10 +1,26 @@
-import torch.nn.functional as F
 import torch
-from mogonet.preparte_trte_data import prepare_trte_data
-from mogonet.models import init_model_dict, init_optim
-from mogonet.utils import one_hot_tensor, cal_sample_weight, gen_adj_mat_tensor, gen_test_adj_mat_tensor, cal_adj_mat_parameter, get_view_list, check_adj_para
+import torch.nn.functional as F
+# Custom imports from the package
+from mogonet.utils import (
+    one_hot_tensor, cal_sample_weight, 
+    gen_adj_mat_tensor, gen_test_adj_mat_tensor, 
+    cal_adj_mat_parameter, get_view_list, check_adj_param_size
+)
 
-cuda = True if torch.cuda.is_available() else False
+from mogonet.prepare_trte_data import prepare_trte_data
+from mogonet.models import init_model_dict, init_optim
+
+def gen_trte_adj_mat(data_tr_list, data_trte_list, trte_idx, adj_parameter):
+    adj_metric = "cosine" # cosine distance
+    adj_train_list = []
+    adj_test_list = []
+    for i in range(len(data_tr_list)):
+        adj_parameter_adaptive = cal_adj_mat_parameter(adj_parameter, data_tr_list[i], adj_metric)
+        adj_train_list.append(gen_adj_mat_tensor(data_tr_list[i], adj_parameter_adaptive, adj_metric))
+        adj_test_list.append(gen_test_adj_mat_tensor(data_trte_list[i], trte_idx, adj_parameter_adaptive, adj_metric))
+    
+    return adj_train_list, adj_test_list
+
 
 # Helper for epoch training
 def train_epoch(data_list, adj_list, label, one_hot_label, sample_weight, model_dict, optim_dict, train_VCDN=True):
@@ -38,7 +54,7 @@ def train_epoch(data_list, adj_list, label, one_hot_label, sample_weight, model_
 
 # This is the main function to train
 def train_mogonet(
-    data_folder, output_name,
+    data_folder,
     lr_e_pretrain, lr_e, lr_c,
     num_epoch_pretrain, num_epoch, view_list=None, 
     num_class=2, adj_parameter=5
@@ -61,6 +77,7 @@ def train_mogonet(
         print("Did not provide custom view list, finding it now")
         view_list = get_view_list(data_folder)
     # Check if cuda used or not
+    cuda = True if torch.cuda.is_available() else False
     if cuda:
         print("Found cuda, using GPU")
     else:
@@ -112,6 +129,7 @@ def train_mogonet(
                         onehot_labels_tr_tensor, sample_weight_tr, model_dict, 
                         optim_dict, train_VCDN=False)
     # Main logic to train now
+    
     print("\nTraining...")
     optim_dict = init_optim(num_view, model_dict, lr_e, lr_c)
     for epoch in range(num_epoch+1):
@@ -119,6 +137,9 @@ def train_mogonet(
         # for every model_dict[m].state_dict()
         train_epoch(data_tr_list, adj_tr_list, labels_tr_tensor,
                     onehot_labels_tr_tensor, sample_weight_tr, model_dict, optim_dict)
-    # Then save the model to disk
-    save_model_dict(model_dict, output_name)
-  
+    # Return relevant stuff back for test purposes
+    test_input = {"data_list": data_trte_list,
+                 "adj_list": adj_te_list,
+                 "test_idxs": trte_idx["te"]
+                 }
+    return model_dict, test_input
