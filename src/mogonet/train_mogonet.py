@@ -57,7 +57,7 @@ def train_mogonet(
     data_folder,
     lr_e_pretrain, lr_e, lr_c,
     num_epoch_pretrain, num_epoch, view_list=None, 
-    num_class=2, adj_parameter=5
+    num_class=2, adj_parameter=5, he_base_dim=2
                 ):
     """
     Parameters:
@@ -71,6 +71,7 @@ def train_mogonet(
     lr_c:                   Learning rate ....
     num_epoch_pretrain:     Number of epochs to supply for pretrain
     adj_parameter:          Hyperparameter for adjacency matrix, tuneable, FIX LATER
+    he_base_dim:            Dimension of hidden layer
     """
     # Check if view_list provided or not 
     if view_list is None:
@@ -88,7 +89,7 @@ def train_mogonet(
     dim_hvcdn = pow(num_class,num_view)
     # ----------------------------------
     # Modify LATER!!!!!!!
-    dim_he_list = [50] * num_view # Need a more robust way to decide this
+    dim_he_list = [he_base_dim] * num_view # Need a more robust way to decide this
     # But it should be of length N (numbers of blocks), so might need to column number
     # in each block minus some constant, such this number < column numebr of specific block
     # ---------------------------------

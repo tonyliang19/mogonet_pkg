@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "Mogonet"
 description = "Package for MOGONET method @nature communications"
-version = "2.0.0"
+version = "2.0.1"
 authors = [
   { name="Tony Liang", email="tony.liang@hli.ubc.ca" },
 ]
